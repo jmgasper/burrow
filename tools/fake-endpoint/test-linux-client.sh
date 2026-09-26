@@ -24,8 +24,6 @@ bash "$CTL" start saml full || exit 1
 client saml --full
 bash "$CTL" start saml split || exit 1
 
-echo "=== endpoint log excerpts"
-docker logs burrow-fake-endpoint 2>&1 | grep -E 'auth:|idp:' | tail -5
 if (( failures )); then
     echo "$failures client test(s) failed"
     exit 1
