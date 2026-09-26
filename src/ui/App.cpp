@@ -1,14 +1,18 @@
 #include "App.h"
 #include "CredentialsWindow.h"
+#include "DeskbarView.h"
 #include "LogWindow.h"
 #include "MainWindow.h"
 #include "Messages.h"
 #include "NameWindow.h"
 #include "core/ResolvConf.h"
 #include <Alert.h>
+#include <Deskbar.h>
+#include <File.h>
 #include <FilePanel.h>
 #include <Invoker.h>
 #include <FindDirectory.h>
+#include <MimeType.h>
 #include <Notification.h>
 #include <Path.h>
 #include <PathFinder.h>
@@ -22,6 +26,7 @@
 namespace burrow {
 
 const char* const kAppSignature = "application/x-vnd.Burrow";
+const char* const kProfileType = "application/x-openvpn-profile";
 
 namespace {
 
@@ -90,6 +95,24 @@ void BurrowApp::ReadyToRun()
     mkdir(fRuntimeDirectory.c_str(), 0700);
     // A previous run that crashed may have left its name servers behind.
     RestoreDns(kResolvConfPath);
+    _LoadSettings();
+    if (fDeskbarWanted && !InDeskbar())
+        SetInDeskbar(true);
+
+    // Let Tracker recognise .ovpn files and open them with Burrow.
+    BMimeType profileType(kProfileType);
+    BMessage extensions;
+    if (profileType.GetFileExtensions(&extensions) != B_OK
+        || !extensions.HasString("extensions")) {
+        if (!profileType.IsInstalled())
+            profileType.Install();
+        profileType.SetShortDescription("VPN profile");
+        profileType.SetLongDescription("OpenVPN or AWS Client VPN profile");
+        extensions.MakeEmpty();
+        extensions.AddString("extensions", "ovpn");
+        profileType.SetFileExtensions(&extensions);
+        profileType.SetPreferredApp(kAppSignature);
+    }
 
     MainWindow* window = new MainWindow();
     fWindow = BMessenger(window);
@@ -110,6 +133,7 @@ void BurrowApp::ReadyToRun()
 
 bool BurrowApp::QuitRequested()
 {
+    fQuitRequested = true;
     bool active = false;
     {
         std::lock_guard<std::mutex> lock(fLock);
@@ -158,6 +182,19 @@ void BurrowApp::MessageReceived(BMessage* message)
                 _Disconnect(id);
             break;
         }
+        case kMsgGetStatus: {
+            BMessage reply(kMsgStatusReply);
+            for (const ProfileStatus& status : Statuses()) {
+                reply.AddString("id", status.id.c_str());
+                reply.AddString("name", status.name.c_str());
+                reply.AddInt32("state", (int32)status.state);
+            }
+            message->SendReply(&reply);
+            break;
+        }
+        case kMsgToggleDeskbar:
+            SetInDeskbar(!InDeskbar());
+            break;
         case kMsgShowImportPanel:
             if (fOpenPanel == nullptr) {
                 BMessenger target(this);
@@ -783,6 +820,57 @@ std::string BurrowApp::_FindOpenVPN() const
         }
     }
     return "";
+}
+
+
+bool BurrowApp::HasActiveConnection() const
+{
+    std::lock_guard<std::mutex> lock(fLock);
+    for (auto& entry : fConnections) {
+        if (entry.second->Active())
+            return true;
+    }
+    return false;
+}
+
+
+bool BurrowApp::InDeskbar() const
+{
+    return BDeskbar().HasItem(BurrowDeskbarView::kName);
+}
+
+
+void BurrowApp::SetInDeskbar(bool show)
+{
+    BDeskbar deskbar;
+    if (show && !deskbar.HasItem(BurrowDeskbarView::kName)) {
+        app_info info;
+        if (GetAppInfo(&info) == B_OK)
+            deskbar.AddItem(&info.ref);
+    } else if (!show)
+        deskbar.RemoveItem(BurrowDeskbarView::kName);
+    fDeskbarWanted = show;
+    _SaveSettings();
+}
+
+
+void BurrowApp::_LoadSettings()
+{
+    BFile file((fSettingsDirectory + "/settings").c_str(), B_READ_ONLY);
+    BMessage settings;
+    if (file.InitCheck() == B_OK && settings.Unflatten(&file) == B_OK)
+        fDeskbarWanted = settings.GetBool("deskbar", true);
+}
+
+
+void BurrowApp::_SaveSettings()
+{
+    mkdir(fSettingsDirectory.c_str(), 0700);
+    BFile file((fSettingsDirectory + "/settings").c_str(),
+        B_WRITE_ONLY | B_CREATE_FILE | B_ERASE_FILE);
+    BMessage settings;
+    settings.AddBool("deskbar", fDeskbarWanted);
+    settings.Flatten(&file);
 }
 
 

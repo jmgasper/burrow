@@ -59,6 +59,11 @@ public:
     bool Status(const std::string& id, ProfileStatus& status) const;
     std::vector<std::string> Log(const std::string& id) const;
     std::string OpenVPNPath() const { return fOpenVPNPath; }
+    bool Quitting() const { return fQuitRequested; }
+    bool HasActiveConnection() const;
+    bool InDeskbar() const;
+    // Shows or removes Burrow's Deskbar icon and remembers the choice.
+    void SetInDeskbar(bool show);
 
     static BurrowApp* Instance() { return (BurrowApp*)be_app; }
 
@@ -96,6 +101,10 @@ private:
     std::string fOpenVPNPath;
     std::vector<std::string> fPendingArgs;
     bool fQuitting = false;
+    bool fQuitRequested = false;
+    void _LoadSettings();
+    void _SaveSettings();
+    bool fDeskbarWanted = true;
 };
 
 }  // namespace burrow

@@ -235,8 +235,7 @@ void IconView::Draw(BRect)
 
 MainWindow::MainWindow()
     :
-    BWindow(BRect(0, 0, 800, 480), "Burrow", B_TITLED_WINDOW, B_AUTO_UPDATE_SIZE_LIMITS
-        | B_QUIT_ON_WINDOW_CLOSE),
+    BWindow(BRect(0, 0, 800, 480), "Burrow", B_TITLED_WINDOW, B_AUTO_UPDATE_SIZE_LIMITS),
     fTicker(nullptr)
 {
     BMenuBar* menuBar = new BMenuBar("menu");
@@ -247,6 +246,10 @@ MainWindow::MainWindow()
         new BMessage(kMsgRenameProfile), 'R'));
     profileMenu->AddItem(fRemoveItem = new BMenuItem("Remove" B_UTF8_ELLIPSIS,
         new BMessage(kMsgRemoveProfile)));
+    profileMenu->AddSeparatorItem();
+    profileMenu->AddItem(fDeskbarItem = new BMenuItem("Show in Deskbar",
+        new BMessage(kMsgToggleDeskbar)));
+    fDeskbarItem->SetTarget(be_app);
     profileMenu->AddSeparatorItem();
     BMenuItem* about = new BMenuItem("About Burrow", new BMessage(B_ABOUT_REQUESTED));
     about->SetTarget(be_app);
@@ -507,7 +510,16 @@ void MainWindow::Show()
 bool MainWindow::QuitRequested()
 {
     _SaveFrame();
-    return true;
+    BurrowApp* app = BurrowApp::Instance();
+    if (app->Quitting())
+        return true;
+    // With the Deskbar icon the VPN keeps running without the window.
+    if (app->HasActiveConnection() && app->InDeskbar()) {
+        Hide();
+        return false;
+    }
+    be_app->PostMessage(B_QUIT_REQUESTED);
+    return false;
 }
 
 
@@ -522,6 +534,7 @@ void MainWindow::MenusBeginning()
     fRenameItem->SetEnabled(selected);
     fRemoveItem->SetEnabled(selected);
     fLogItem->SetEnabled(selected);
+    fDeskbarItem->SetMarked(BurrowApp::Instance()->InDeskbar());
 }
 
 

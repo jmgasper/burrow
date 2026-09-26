@@ -84,6 +84,7 @@ private:
     BMenuItem* fRenameItem;
     BMenuItem* fRemoveItem;
     BMenuItem* fLogItem;
+    BMenuItem* fDeskbarItem;
     BMessageRunner* fTicker;
     bool fFrameApplied = false;
 };

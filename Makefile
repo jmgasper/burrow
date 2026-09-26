@@ -21,7 +21,7 @@ LIBS = -lbe -ltracker $(CORE_LIBS)
 all: $(BUILD)/Burrow
 core: $(CORE_OBJ)
 $(BUILD)/Burrow: $(CORE_OBJ) $(UI_OBJ) resources/Burrow.rdef resources/branding/burrow-icon.hvif
-	$(CXX) -o $@.new $(CORE_OBJ) $(UI_OBJ) $(LIBS)
+	$(CXX) -o $@.new $(CORE_OBJ) $(UI_OBJ) $(LIBS) -Wl,--export-dynamic
 	rc -o $(BUILD)/Burrow.rsrc resources/Burrow.rdef
 	xres -o $@.new $(BUILD)/Burrow.rsrc
 	mimeset -f $@.new

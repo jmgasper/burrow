@@ -5,6 +5,7 @@
 namespace burrow {
 
 extern const char* const kAppSignature;   // application/x-vnd.Burrow
+extern const char* const kProfileType;    // application/x-openvpn-profile
 
 enum {
     // "id": profile id
@@ -17,6 +18,9 @@ enum {
     kMsgShowImportPanel = 'impt',
     kMsgShowWindow = 'shwn',
     kMsgReopenSignIn = 'rsgn',
+    kMsgToggleDeskbar = 'tdsk',
+    kMsgGetStatus = 'gsts',           // reply: kMsgStatusReply
+    kMsgStatusReply = 'strp',         // "id", "name", "state" arrays
 
     // App -> windows
     kMsgProfilesChanged = 'pchg',     // "select": id to select

@@ -1,0 +1,21 @@
+name burrow
+version 0.1.0~alpha-2
+architecture x86_64
+summary "VPN client for AWS Client VPN and OpenVPN servers"
+description "Burrow connects Haiku to AWS Client VPN endpoints, including AWS single sign-on (SAML) through your web browser, and to other OpenVPN servers with certificate or user name and password authentication. It imports .ovpn profiles, shows the connection's state, address, traffic, DNS and routes, applies the VPN's name servers while connected, and lives in the Deskbar tray. It ships its own OpenVPN 2.6.13 build (burrow-openvpn) with the AWS Client VPN patch and Haiku tunnel and routing fixes."
+packager "Burrow contributors"
+vendor "Burrow"
+copyrights { "2026 Burrow contributors" "2002-2024 OpenVPN Inc" }
+licenses { "MIT" "GNU GPL v2" }
+provides {
+    burrow = 0.1.0~alpha
+    app:Burrow = 0.1.0~alpha
+    cmd:burrow_openvpn = 2.6.13
+}
+requires {
+    haiku >= r1~beta6
+    lib:libcrypto >= 3
+    lib:libssl >= 3
+    lib:liblzo2 >= 2
+    lib:liblz4 >= 1
+}

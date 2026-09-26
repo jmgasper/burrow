@@ -13,5 +13,8 @@ resource app_version {
     long_info = "A native Haiku VPN client for AWS Client VPN and OpenVPN servers, with AWS single sign-on."
 };
 resource file_types message {
-    "types" = "application/x-openvpn-profile"
+    "types" = "application/x-openvpn-profile",
+    // Haiku identifies .ovpn files by content as text/plain; this puts Burrow
+    // in Tracker's "Open with" for them.
+    "types" = "text/plain"
 };
