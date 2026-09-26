@@ -1,0 +1,158 @@
+Burrow test-only: server side of the AWS Client VPN client patch.
+
+The AWS client (0002) sends u32 string lengths in key-method-2 and writes
+the message length into the leading uint32, which key_method_2_read()
+discards. This server keeps writing standard u16 strings (the client reads
+those unpatched), reads u32 strings, and takes the enlarged buffers of
+0002 (parenthesised as in 0003). It only talks to AWS-patched clients.
+
+diff --git a/src/openvpn/buffer.h b/src/openvpn/buffer.h
+index d988ef2..66ac439 100644
+--- a/src/openvpn/buffer.h
++++ b/src/openvpn/buffer.h
+@@ -27,7 +27,7 @@
+ #include "basic.h"
+ #include "error.h"
+ 
+-#define BUF_SIZE_MAX 1000000
++#define BUF_SIZE_MAX (1 << 21)
+ 
+ /*
+  * Define verify_align function, otherwise
+diff --git a/src/openvpn/common.h b/src/openvpn/common.h
+index 3a84541..f3010bd 100644
+--- a/src/openvpn/common.h
++++ b/src/openvpn/common.h
+@@ -66,7 +66,7 @@ typedef unsigned long ptr_type;
+  * maximum size of a single TLS message (cleartext).
+  * This parameter must be >= PUSH_BUNDLE_SIZE
+  */
+-#define TLS_CHANNEL_BUF_SIZE 2048
++#define TLS_CHANNEL_BUF_SIZE (1 << 18)
+ 
+ /* TLS control buffer minimum size
+  *
+diff --git a/src/openvpn/error.h b/src/openvpn/error.h
+index ab2872a..e7fe796 100644
+--- a/src/openvpn/error.h
++++ b/src/openvpn/error.h
+@@ -34,7 +34,10 @@
+ #if defined(ENABLE_PKCS11) || defined(ENABLE_MANAGEMENT)
+ #define ERR_BUF_SIZE 10240
+ #else
+-#define ERR_BUF_SIZE 1280
++/*
++ * Increase the error buffer size to 256 KB.
++ */
++#define ERR_BUF_SIZE (1 << 18)
+ #endif
+ 
+ struct gc_arena;
+diff --git a/src/openvpn/manage.c b/src/openvpn/manage.c
+index feb3227..cf2cf78 100644
+--- a/src/openvpn/manage.c
++++ b/src/openvpn/manage.c
+@@ -2245,7 +2245,7 @@ man_read(struct management *man)
+     /*
+      * read command line from socket
+      */
+-    unsigned char buf[256];
++    unsigned char buf[MANAGEMENT_SOCKET_READ_BUFFER_SIZE];
+     int len = 0;
+ 
+ #ifdef TARGET_ANDROID
+@@ -2336,7 +2336,7 @@ man_read(struct management *man)
+ static int
+ man_write(struct management *man)
+ {
+-    const int size_hint = 1024;
++    const int size_hint = 8192;
+     int sent = 0;
+     const struct buffer *buf;
+ 
+@@ -2581,7 +2581,7 @@ man_connection_init(struct management *man)
+          * Allocate helper objects for command line input and
+          * command output from/to the socket.
+          */
+-        man->connection.in = command_line_new(1024);
++        man->connection.in = command_line_new(COMMAND_LINE_OPTION_BUFFER_SIZE);
+         man->connection.out = buffer_list_new();
+ 
+         /*
+diff --git a/src/openvpn/manage.h b/src/openvpn/manage.h
+index 1896510..7284f10 100644
+--- a/src/openvpn/manage.h
++++ b/src/openvpn/manage.h
+@@ -55,9 +55,12 @@
+ #define MANAGEMENT_VERSION                      5
+ #define MANAGEMENT_N_PASSWORD_RETRIES           3
+ #define MANAGEMENT_LOG_HISTORY_INITIAL_SIZE   100
+-#define MANAGEMENT_ECHO_BUFFER_SIZE           100
++#define MANAGEMENT_ECHO_BUFFER_SIZE           8192
+ #define MANAGEMENT_STATE_BUFFER_SIZE          100
+ 
++#define COMMAND_LINE_OPTION_BUFFER_SIZE OPTION_PARM_SIZE
++#define MANAGEMENT_SOCKET_READ_BUFFER_SIZE OPTION_PARM_SIZE
++
+ /*
+  * Management-interface-based deferred authentication
+  */
+diff --git a/src/openvpn/misc.h b/src/openvpn/misc.h
+index 022498c..9724782 100644
+--- a/src/openvpn/misc.h
++++ b/src/openvpn/misc.h
+@@ -66,7 +66,10 @@ struct user_pass
+ #ifdef ENABLE_PKCS11
+ #define USER_PASS_LEN 4096
+ #else
+-#define USER_PASS_LEN 128
++/*
++ * Increase the username and password length size to 128KB.
++ */
++#define USER_PASS_LEN (1 << 17)
+ #endif
+     /* Note that username and password are expected to be null-terminated */
+     char username[USER_PASS_LEN];
+diff --git a/src/openvpn/options.h b/src/openvpn/options.h
+index e85d806..f53149f 100644
+--- a/src/openvpn/options.h
++++ b/src/openvpn/options.h
+@@ -54,8 +54,8 @@
+ /*
+  * Max size of options line and parameter.
+  */
+-#define OPTION_PARM_SIZE 256
+-#define OPTION_LINE_SIZE 256
++#define OPTION_PARM_SIZE USER_PASS_LEN
++#define OPTION_LINE_SIZE OPTION_PARM_SIZE
+ 
+ extern const char title_string[];
+ 
+diff --git a/src/openvpn/ssl.c b/src/openvpn/ssl.c
+index 4fa7ea6..f4f5583 100644
+--- a/src/openvpn/ssl.c
++++ b/src/openvpn/ssl.c
+@@ -1987,7 +1987,10 @@ write_string(struct buffer *buf, const char *str, const int maxlen)
+ static int
+ read_string(struct buffer *buf, char *str, const unsigned int capacity)
+ {
+-    const int len = buf_read_u16(buf);
++    /* AWS Client VPN clients send u32 string lengths (server emulation). */
++    bool good = false;
++    const uint32_t len32 = buf_read_u32(buf, &good);
++    const int len = good && len32 <= (uint32_t)BUF_SIZE_MAX ? (int)len32 : -1;
+     if (len < 1 || len > (int)capacity)
+     {
+         buf_advance(buf, len);
+@@ -2006,7 +2009,10 @@ read_string(struct buffer *buf, char *str, const unsigned int capacity)
+ static char *
+ read_string_alloc(struct buffer *buf)
+ {
+-    const int len = buf_read_u16(buf);
++    /* AWS Client VPN clients send u32 string lengths (server emulation). */
++    bool good = false;
++    const uint32_t len32 = buf_read_u32(buf, &good);
++    const int len = good && len32 <= (uint32_t)BUF_SIZE_MAX ? (int)len32 : -1;
+     char *str;
+ 
+     if (len < 1)
