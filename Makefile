@@ -11,15 +11,18 @@ CORE = $(wildcard src/core/*.cpp)
 UI = $(wildcard src/ui/*.cpp) src/main.cpp
 CORE_OBJ = $(CORE:%.cpp=$(BUILD)/%.o)
 UI_OBJ = $(UI:%.cpp=$(BUILD)/%.o)
-ifeq ($(shell uname),Haiku)
+# Set TARGET_OS=Haiku when cross-compiling (tools/build-arm64.sh).
+TARGET_OS ?= $(shell uname)
+ifeq ($(TARGET_OS),Haiku)
 CORE_LIBS = -lnetwork
 else
 CORE_LIBS = -lpthread
 endif
 LIBS = -lbe -ltracker $(CORE_LIBS)
-.PHONY: all core openvpn package clean icon check check-host
+.PHONY: all core objects openvpn package clean icon check check-host
 all: $(BUILD)/Burrow
 core: $(CORE_OBJ)
+objects: $(CORE_OBJ) $(UI_OBJ)
 $(BUILD)/Burrow: $(CORE_OBJ) $(UI_OBJ) resources/Burrow.rdef resources/branding/burrow-icon.hvif
 	$(CXX) -o $@.new $(CORE_OBJ) $(UI_OBJ) $(LIBS) -Wl,--export-dynamic
 	rc -o $(BUILD)/Burrow.rsrc resources/Burrow.rdef

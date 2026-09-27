@@ -1,6 +1,7 @@
 .vm/
 build-haiku/
 build-host/
+build-arm64/
 artifacts/
 __pycache__/
 *.pyc

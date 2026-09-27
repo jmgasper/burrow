@@ -55,6 +55,15 @@ make package    # artifacts/burrow-<version>-x86_64.hpkg
 
 On Linux, `make BUILD=build-host check-host` builds and runs the core tests.
 
+For the ROCK 5 ITX (Haiku arm64), `bash tools/build-arm64.sh` cross-builds on the
+Linux workstation with the fork's arm64 toolchain and Summit's arm64 sysroot. It
+produces `artifacts/burrow-<version>-arm64.hpkg`. That build links OpenSSL
+statically and leaves out LZO/LZ4 compression (the board has no packages for
+them, and AWS does not use them), so it only requires Haiku. The ROCK has no
+battery-backed clock that Haiku reads: if it boots into 1970, TLS rejects the VPN
+server's certificate. Run `/system/preferences/Time --update` (or **Synchronize now**
+in Time preferences) before connecting.
+
 Development uses a Haiku VM (see [docs/VM.md](docs/VM.md)): `bash tools/sync-build.sh`.
 For a VPN to connect to, `bash tools/fake-endpoint.sh start` runs the stand-in AWS
 endpoint in Docker (see [tools/fake-endpoint/README.md](tools/fake-endpoint/README.md)).
