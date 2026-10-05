@@ -25,6 +25,19 @@ part is a patched OpenVPN, which Burrow builds from source for Haiku as
 `burrow-openvpn` (see [openvpn/SOURCE.md](openvpn/SOURCE.md)). Burrow drives that
 build through OpenVPN's management interface.
 
+<!-- airos-ci:latest-builds:start -->
+## Latest builds
+
+Built automatically by air/OS CI from commit `312eaf9` on 2026-10-05 ([all files](https://github.com/jmgasper/burrow/releases/tag/latest)).
+
+| Architecture | Package |
+|---|---|
+| arm64 | [burrow-0.1.0.alpha-2-arm64.hpkg](https://github.com/jmgasper/burrow/releases/download/latest/burrow-0.1.0.alpha-2-arm64.hpkg) |
+| x86_64 | [burrow-0.1.0.alpha-2-x86_64.hpkg](https://github.com/jmgasper/burrow/releases/download/latest/burrow-0.1.0.alpha-2-x86_64.hpkg) |
+
+Install with `pkgman install <file>`, or copy the file into `/boot/system/packages`. Haiku SDK: x86_64 hrev60206-669-g9dc439ceeb, arm64 hrev60206-669-g9dc439ceeb.
+<!-- airos-ci:latest-builds:end -->
+
 ## Status
 
 Alpha. It has been tested end to end in a Haiku R1/beta6 x86_64 VM against a stand-in
