@@ -4,6 +4,7 @@
 #include <LayoutBuilder.h>
 #include <StringView.h>
 #include <TextControl.h>
+#include <TextView.h>
 
 namespace burrow {
 
@@ -24,9 +25,21 @@ CredentialsWindow::CredentialsWindow(const std::string& id, const std::string& p
     bool challengeOnly = !challenge.empty() && !retry;
     std::string title = retry ? "The user name or password was not accepted. Try again for "
         : "Sign in to ";
-    BStringView* heading = new BStringView("heading", (title + profileName).c_str());
+    // Profile names and server challenges are unbounded. Wrap them rather than
+    // allowing a single label to force the dialog off the screen.
+    auto paragraph = [](const char* name, const std::string& text) {
+        BTextView* view = new BTextView(name);
+        view->MakeEditable(false);
+        view->MakeSelectable(false);
+        view->SetWordWrap(true);
+        view->AdoptSystemColors();
+        view->SetExplicitSize(BSize(be_plain_font->StringWidth("M") * 38, B_SIZE_UNSET));
+        view->SetText(text.c_str());
+        return view;
+    };
+    BTextView* heading = paragraph("heading", title + profileName);
     BFont font(be_bold_font);
-    heading->SetFont(&font);
+    heading->SetFontAndColor(&font);
 
     BLayoutBuilder::Group<> builder(this, B_VERTICAL);
     builder.SetInsets(B_USE_WINDOW_SPACING).Add(heading);
@@ -42,10 +55,17 @@ CredentialsWindow::CredentialsWindow(const std::string& id, const std::string& p
         row++;
     }
     if (!challenge.empty()) {
-        fResponse = new BTextControl((challenge + ":").c_str(), "", new BMessage(kMsgOK));
+        builder.Add(paragraph("challenge", challenge));
+        fResponse = new BTextControl("Response:", "", new BMessage(kMsgOK));
         fResponse->TextView()->HideTyping(!echo);
         fields.AddTextControl(fResponse, 0, row++);
     }
+    if (fUser != nullptr)
+        fUser->TextView()->SetExplicitMinSize(BSize(be_plain_font->StringWidth("M") * 20,
+            B_SIZE_UNSET));
+    if (fResponse != nullptr)
+        fResponse->TextView()->SetExplicitMinSize(BSize(be_plain_font->StringWidth("M") * 20,
+            B_SIZE_UNSET));
     BButton* ok = new BButton("Connect", new BMessage(kMsgOK));
     BButton* cancel = new BButton("Cancel", new BMessage(B_QUIT_REQUESTED));
     builder.Add(fields.View())

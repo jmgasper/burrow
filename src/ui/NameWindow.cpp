@@ -24,6 +24,7 @@ NameWindow::NameWindow(const char* title, const char* label, const char* name,
     fName->SetModificationMessage(new BMessage(kMsgNameChanged));
     fName->TextView()->SetExplicitMinSize(BSize(260, B_SIZE_UNSET));
     fOK = new BButton(action, new BMessage(kMsgOK));
+    fOK->SetEnabled(BString(name).Trim().Length() > 0);
     BButton* cancel = new BButton("Cancel", new BMessage(B_QUIT_REQUESTED));
 
     BLayoutBuilder::Group<>(this, B_VERTICAL)

@@ -578,6 +578,7 @@ void MainWindow::_ShowSelected()
 {
     ProfileItem* item = _Selected();
     if (item == nullptr) {
+        SetDefaultButton(nullptr);
         fCards->SetVisibleItem((int32)0);
         return;
     }
@@ -588,6 +589,7 @@ void MainWindow::_ShowSelected()
         || status.state == ConnectionState::Reconnecting;
 
     fName->SetText(status.name.c_str());
+    fName->SetToolTip(status.name.c_str());
     fState->SetText(StateName(status.state));
     fState->SetHighColor(StateColor(status.state));
     fState->Invalidate();
@@ -653,6 +655,7 @@ void MainWindow::_ShowSelected()
             server += "  " + info.serverAddress;
     }
     fServer->SetText(server.c_str());
+    fServer->SetToolTip(server.c_str());
     fAuth->SetText(AuthDescription(status.config.Auth()).c_str());
     std::string address = connected && !info.localAddress.empty() ? info.localAddress : kDash;
     if (connected && !info.device.empty())
@@ -669,6 +672,7 @@ void MainWindow::_ShowSelected()
     for (const std::string& domain : info.pushed.domains)
         dns += (dns.empty() ? "" : "  ") + std::string("search ") + domain;
     fDns->SetText(connected && !dns.empty() ? dns.c_str() : kDash);
+    fDns->SetToolTip(fDns->Text());
 
     std::string routes = kDash;
     if (connected) {
@@ -681,6 +685,7 @@ void MainWindow::_ShowSelected()
         }
     }
     fRoutes->SetText(routes.c_str());
+    fRoutes->SetToolTip(routes.c_str());
 }
 
 

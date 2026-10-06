@@ -46,3 +46,9 @@ package: all
 clean:
 	rm -rf $(BUILD)
 -include $(CORE_OBJ:.o=.d) $(UI_OBJ:.o=.d) $(BUILD)/tests/CoreTests.d
+
+.PHONY: check-ui
+$(BUILD)/ui_tests: tests/UITests.cpp $(BUILD)/src/ui/CredentialsWindow.o $(BUILD)/src/ui/NameWindow.o $(BUILD)/src/ui/LogWindow.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ -lbe
+check-ui: $(BUILD)/ui_tests
+	$(BUILD)/ui_tests

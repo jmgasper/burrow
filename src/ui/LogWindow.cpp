@@ -26,9 +26,13 @@ LogWindow::LogWindow(const std::string& profileName, const std::vector<std::stri
     fText->MakeEditable(false);
     fText->SetStylable(false);
     fText->SetWordWrap(true);
+    fText->SetViewUIColor(B_DOCUMENT_BACKGROUND_COLOR);
+    fText->SetHighUIColor(B_DOCUMENT_TEXT_COLOR);
     BFont font(be_fixed_font);
     fText->SetFontAndColor(&font);
     BScrollView* scroll = new BScrollView("scroll", fText, 0, false, true, B_NO_BORDER);
+    scroll->SetExplicitMinSize(BSize(be_plain_font->StringWidth("M") * 32,
+        be_plain_font->Size() * 12));
 
     BButton* copy = new BButton("Copy all", new BMessage(kMsgCopyAll));
     BLayoutBuilder::Group<>(this, B_VERTICAL, 0)

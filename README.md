@@ -63,8 +63,13 @@ compiler come with Haiku):
 make            # build-haiku/Burrow
 make openvpn    # build-haiku/openvpn/burrow-openvpn
 make check      # core tests (tests/fake-openvpn.py needs python3)
+make check-ui   # native dialog layout checks (requires app_server)
 make package    # artifacts/burrow-<version>-x86_64.hpkg
 ```
+
+The UI checks exercise long profile names and authentication challenges at
+12- and 18-point fonts, empty-name validation, and the log window. They do not
+connect to a VPN or read saved profiles.
 
 On Linux, `make BUILD=build-host check-host` builds and runs the core tests.
 
