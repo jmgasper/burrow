@@ -19,6 +19,7 @@
 #include <Roster.h>
 #include <StringList.h>
 #include <Url.h>
+#include <cstring>
 #include <ctime>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -314,13 +315,19 @@ void BurrowApp::MessageReceived(BMessage* message)
             }
             fSamlOwner = id;
             BUrl target(url.c_str(), false);
-            if (!target.IsValid() || target.OpenWithPreferredApplication(false) != B_OK) {
+            const status_t launchStatus = target.IsValid()
+                ? target.OpenWithPreferredApplication(false) : B_BAD_VALUE;
+            // The roster also delivers the URL when the browser is already running.
+            if (launchStatus != B_OK && launchStatus != B_ALREADY_RUNNING) {
                 BString text;
                 text.SetToFormat("Burrow could not open a web browser. Open this address "
                     "to sign in:\n\n%s", url.c_str());
                 (new BAlert("Sign in", text.String(), "OK"))->Go(nullptr);
+                ConnectionLog(id, "Could not open the sign-in page in the web browser: "
+                    + std::string(strerror(launchStatus)));
+            } else {
+                ConnectionLog(id, "Opened the sign-in page in the web browser");
             }
-            ConnectionLog(id, "Opened the sign-in page in the web browser");
             break;
         }
         case kMsgSamlResponse: {

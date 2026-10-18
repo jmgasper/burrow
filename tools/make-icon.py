@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""Build Burrow's application icon from its logo (resources/branding/burrow-logo.png):
-a burrow in an earth mound, with grass and rocks, and a silver and blue shield
-with a keyhole in the tunnel.
+"""Build Burrow's native Haiku icon: a secure tunnel with a golden key.
 
-The mound, grass and rocks are the traced layers in burrow-icon-layers.json
-(see tools/trace-icon.py); the shield is drawn here, from the artwork's
-measured outline, split into a lit left half and a shaded right half.
+The 64-unit drawing uses Haiku's 2:1 front / 1:1 receding perspective,
+upper-left lighting, a two-unit silhouette outline and a rightward shadow.
+All geometry is authored here; no raster tracing or external artwork is needed.
 
     python3 tools/make-icon.py resources/branding/burrow-icon.hvif [preview.png]
 """
-import json
 import os
 import sys
 
@@ -17,128 +14,130 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hvif  # noqa: E402
 
 C = hvif.hex_color
-K = 0.5523
-LAYERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      'resources/branding/burrow-icon-layers.json')
-
 icon = {'styles': [], 'paths': [], 'shapes': []}
 
 
-def style(definition):
-    icon['styles'].append(definition)
+def solid(color, alpha=255):
+    icon['styles'].append({'color': C(color, alpha)})
     return len(icon['styles']) - 1
 
 
-def path(points):
-    icon['paths'].append({'closed': True, 'points': points})
-    return len(icon['paths']) - 1
+def gradient(start, end, colors):
+    icon['styles'].append(hvif.linear_gradient(start, end,
+        [(i / (len(colors) - 1), C(c)) for i, c in enumerate(colors)]))
+    return len(icon['styles']) - 1
 
 
-def shape(style_index, paths, **extra):
-    result = {'style': style_index, 'paths': paths}
-    result.update(extra)
-    icon['shapes'].append(result)
+def curve(point, incoming, outgoing):
+    return point, incoming, outgoing
 
 
-def node(values):
-    """A traced point: [x, y] for a corner, or [x, y, in_x, in_y, out_x, out_y]."""
-    if len(values) == 2:
-        return tuple(values)
-    return (tuple(values[0:2]), tuple(values[2:4]), tuple(values[4:6]))
+def draw(style, points, closed=True, stroke=0, **extra):
+    index = len(icon['paths'])
+    icon['paths'].append({'closed': closed, 'points': points})
+    shape = {'style': style, 'paths': [index], **extra}
+    if stroke:
+        shape['transformers'] = [{'type': 'stroke', 'width': stroke,
+                                  'join': 1, 'cap': 1}]
+    icon['shapes'].append(shape)
+    return index
 
 
-def curve(point, pin, pout):
-    return (point, pin, pout)
+def fill(style, index):
+    icon['shapes'].append({'style': style, 'paths': [index]})
 
 
-def contour(width):
-    return [{'type': 'contour', 'width': width, 'join': 2, 'miter': 4}]
+# The tunnel mouth lies in the plane y = v + x / 2. Its extrusion
+# recedes along (14, -14); upright edges stay vertical.
+black = solid('171b20')
+shadow = solid('000000', 55)
+roof = gradient((12, 13), (52, 35), ['d5e8ee', '6f9fb6', '37576e'])
+front = gradient((10, 24), (36, 57), ['d9edf2', '83b4ce', '4783a7'])
+inside = gradient((20, 31), (33, 47), ['172b3d', '31566c'])
+edge = solid('eff8fa')
+shade = solid('2c536d')
+gold = gradient((17, 36), (30, 51), ['fff1a5', 'efbb43', 'b57920'])
+gold_edge = solid('fff4bd')
+key_shadow = solid('102332', 115)
 
+# A crisp, translucent ground shadow extending horizontally to the right.
+draw(shadow, [(8, 44), (39, 60), (62, 48), (54, 43), (28, 34)])
 
-# ------------------------------------------------------------------ traced artwork
-with open(LAYERS) as f:
-    for layer in json.load(f)['layers']:
-        shape(style({'color': C(layer['color'])}), [path([node(p) for p in points]) for points in layer['paths']])
-
-# ------------------------------------------------------------------ shield
-# Seen slightly from the left: the halves meet on x = 36.76.
-CX, TIP = 36.76, 36.72
-rim = [
-    curve((CX, 29.62), (33.26, 31.9), (40.06, 31.8)),
-    curve((44.75, 32.94), (41.25, 32.24), (44.75, 32.94)),
-    curve((44.75, 37.0), (44.75, 37.0), (44.75, 44.0)),
-    curve((TIP, 50.25), (40.66, 48.14), (31.14, 47.99)),
-    curve((27.47, 37.0), (27.47, 44.5), (27.47, 37.0)),
-    curve((27.47, 33.0), (27.47, 33.0), (31.47, 32.2)),
+# Outer silhouette, including the curved roof and the shaded right wall.
+body = [
+    (8, 44), (8, 30),
+    curve((23, 19), (15, 15), (23, 19)),
+    (37, 5),
+    curve((54, 30), (48, 10), (54, 30)),
+    (54, 44), (40, 58),
 ]
-rim_left = [
-    curve((CX, 29.62), (33.26, 31.9), (CX, 29.62)),
-    curve((TIP, 50.25), (TIP, 50.25), (31.14, 47.99)),
-    rim[4],
-    rim[5],
-]
+p = draw(black, body, stroke=2)
+fill(roof, p)
+
+# Tunnel mouth: a broad stone arch, with an unbroken outer outline.
 face = [
-    curve((CX, 31.72), (34.3, 33.27), (39.3, 33.27)),
-    curve((43.53, 34.2), (41.03, 33.65), (43.53, 34.2)),
-    curve((43.53, 36.5), (43.53, 36.5), (43.53, 42.5)),
-    curve((TIP, 48.31), (40.2, 46.29), (31.67, 46.21)),
-    curve((29.21, 36.5), (29.21, 43.0), (29.21, 36.5)),
-    curve((29.21, 34.55), (29.21, 34.55), (32.01, 33.85)),
+    (8, 44), (8, 30),
+    curve((24, 19), (8, 15), (40, 27)),
+    (40, 44), (40, 58),
+    (32, 54), (32, 40),
+    curve((16, 32), (32, 29), (16, 32)),
+    (16, 48),
 ]
-face_left = [
-    curve((CX, 31.72), (34.3, 33.27), (CX, 31.72)),
-    curve((TIP, 48.31), (TIP, 48.31), (31.67, 46.21)),
-    face[4],
-    face[5],
-]
-# A round keyhole on a tapered stem.
-kx, ky, r = 36.82, 38.55, 1.78
-k = K * r
-keyhole = [
-    (kx - 0.86, 40.4),
-    curve((kx - r, ky), (kx - r, ky + 0.7 * k), (kx - r, ky - k)),
-    curve((kx, ky - r), (kx - k, ky - r), (kx + k, ky - r)),
-    curve((kx + r, ky), (kx + r, ky - k), (kx + r, ky + 0.7 * k)),
-    (kx + 0.86, 40.4),
-    (kx + 1.38, 43.72),
-    (kx - 1.38, 43.72),
-]
+p = draw(black, face, stroke=2)
+fill(front, p)
 
-OUTLINE = style({'color': C('0d0b0b')})
-RIM_SHADE = style(hvif.linear_gradient((41, 30.5), (39, 50), [
-    (0.0, C('b4b9c3')), (0.3, C('727c8f')), (1.0, C('5a6476'))]))
-RIM_LIGHT = style(hvif.linear_gradient((29, 31), (34, 50), [
-    (0.0, C('f4f6fa')), (0.45, C('c3c9d4')), (1.0, C('96a0b0'))]))
-FACE_EDGE = style({'color': C('0b3f86')})
-FACE_SHADE = style(hvif.linear_gradient((40, 32), (38, 48), [
-    (0.0, C('0a5ec6')), (0.5, C('054bac')), (1.0, C('003986'))]))
-FACE_LIGHT = style(hvif.linear_gradient((31, 33), (34, 48), [
-    (0.0, C('46d8fc')), (0.45, C('1a98f5')), (1.0, C('0b5cc4'))]))
-KEYHOLE_RIM = style({'color': C('b9d0e8')})
+# Opening and inner wall. The dark aperture remains legible at 16 pixels.
+opening = [
+    (16, 48), (16, 33),
+    curve((24, 29), (16, 25), (32, 33)),
+    (32, 40), (32, 54),
+]
+draw(inside, opening)
+draw(shade, [(16, 48), (16, 34), (21, 29), (21, 43), (32, 49), (32, 54)])
 
-rim_path, rim_left_path = path(rim), path(rim_left)
-face_path, face_left_path = path(face), path(face_left)
-keyhole_path = path(keyhole)
-shape(OUTLINE, [rim_path], transformers=contour(1.4))
-shape(RIM_SHADE, [rim_path])
-shape(RIM_LIGHT, [rim_left_path])
-shape(FACE_EDGE, [face_path], transformers=contour(0.7))
-shape(FACE_SHADE, [face_path])
-shape(FACE_LIGHT, [face_left_path])
-shape(KEYHOLE_RIM, [keyhole_path], transformers=contour(0.7))
-shape(OUTLINE, [keyhole_path])
+# A narrow highlight follows the light-facing lip; no decorative texture.
+draw(edge, [(10, 42), (10, 30),
+    curve((24, 21), (10, 18), (37, 27)), (38, 42)],
+    closed=False, stroke=1)
+draw(shade, [(40, 44), (40, 56), (52, 44)], closed=False, stroke=1)
+
+# Golden key laid across the threshold. A simple ring and two teeth
+# communicate authentication without an extra shield or tiny decoration.
+key = [
+    curve((14, 35), (10, 35), (18, 35)),
+    curve((21, 41), (21, 37), (21, 42)),
+    (33, 47), (33, 51), (29, 49), (29, 53), (25, 51), (25, 47),
+    (19, 44),
+    curve((14, 47), (18, 47), (10, 47)),
+    curve((7, 41), (7, 45), (7, 37)),
+]
+draw(key_shadow, [
+    ((x + 2, y + 2), (xi + 2, yi + 2), (xo + 2, yo + 2))
+    for (x, y), (xi, yi), (xo, yo) in map(hvif.normalize_point, key)])
+p = draw(black, key, stroke=2)
+fill(gold, p)
+# The ring's hole is intentionally large enough to survive the mini icon.
+hole = [
+    curve((14, 39), (12, 39), (16, 39)),
+    curve((17, 41), (17, 40), (17, 43)),
+    curve((14, 43), (16, 43), (12, 43)),
+    curve((11, 41), (11, 42), (11, 39)),
+]
+draw(black, hole)
+draw(gold_edge, [(20, 42), (31, 47.5)], closed=False, stroke=1)
 
 if __name__ == '__main__':
     out = sys.argv[1] if len(sys.argv) > 1 else 'burrow-icon.hvif'
     data = hvif.encode(icon)
-    hvif.decode(data)
+    decoded = hvif.decode(data)
+    assert hvif.encode(decoded) == data
     with open(out, 'wb') as f:
         f.write(data)
     print('%s: %d bytes' % (out, len(data)))
     svg = out.rsplit('.', 1)[0] + '.svg'
     with open(svg, 'w') as f:
-        f.write(hvif.to_svg(icon))
+        f.write(hvif.to_svg(decoded))
     print('%s: SVG source' % svg)
     if len(sys.argv) > 2:
-        hvif.preview(icon, 256, (245, 245, 240, 255)).save(sys.argv[2])
+        hvif.preview(decoded, 256).save(sys.argv[2])
         print(sys.argv[2])
